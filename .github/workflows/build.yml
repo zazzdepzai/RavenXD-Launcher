@@ -1,0 +1,71 @@
+name: Build RavenXD Launcher
+
+on:
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Windows Launcher
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Check CMake
+        run: cmake --version
+
+      - name: Configure CMake
+        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+
+      - name: Build RavenXD
+        run: cmake --build build --config Release --parallel
+
+      - name: Prepare package
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path package
+          Copy-Item "build\Release\RavenXDLauncher.exe" "package\RavenXDLauncher.exe"
+
+          if (Test-Path "launcher") {
+            Copy-Item "launcher" "package\launcher" -Recurse
+          }
+
+          if (Test-Path "mod") {
+            Copy-Item "mod" "package\mod" -Recurse
+          }
+
+          if (Test-Path "assets") {
+            Copy-Item "assets" "package\assets" -Recurse
+          }
+
+          if (Test-Path "README.md") {
+            Copy-Item "README.md" "package\README.md"
+          }
+
+      - name: Create ZIP
+        shell: powershell
+        run: |
+          Compress-Archive `
+            -Path "package\*" `
+            -DestinationPath "RavenXD-Launcher-Windows-x64.zip" `
+            -Force
+
+      - name: Upload EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: RavenXD-Launcher-Windows-x64
+          path: package/
+
+      - name: Upload ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: RavenXD-Launcher-ZIP
+          path: RavenXD-Launcher-Windows-x64.zip
